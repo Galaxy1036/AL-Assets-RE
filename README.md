@@ -16,9 +16,9 @@ For further explanations about the files formats look at the following links
 
 | File Type | Format |
 | -----| ------------- |
-| PAK files | [PAK files format](https://github.com/Galaxy1036/AL-Assets-RE/wiki) |
-| IFF files | [IFF files format](https://github.com/Galaxy1036/AL-Assets-RE/wiki) |
-| Others files | [Others files formats](https://github.com/Galaxy1036/AL-Assets-RE/wiki) |
+| PAK files | [PAK files format](https://github.com/Galaxy1036/AL-Assets-RE/wiki/PAK-Files) |
+| IFF files | [IFF files format](https://github.com/Galaxy1036/AL-Assets-RE/wiki/IFF-format) |
+| Others files | [Others files formats](https://github.com/Galaxy1036/AL-Assets-RE/wiki/Others-files-formats) |
 
 ## Scripts list
 - `geometry_extractor.py`: allow you to extract 3d models from .geo files
