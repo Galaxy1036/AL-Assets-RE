@@ -1,5 +1,4 @@
 import os
-import sys
 import argparse
 import numpy as np
 import collada
@@ -11,7 +10,6 @@ from reader import BinaryReader
 def extract_models(iff_object, filename):
     iff_root = iff_object.get_root_form()
 
-    # Maybe they can contains multiple GEOM, dunno
     geometry = iff_root.get_form('GEOM')
 
     if geometry is not None:
@@ -22,14 +20,13 @@ def extract_models(iff_object, filename):
 
             if primitives:
                 geometry_nodes = []
-                
+
                 model = collada.Collada()
 
                 contributor = collada.asset.Contributor()
 
                 contributor.author = 'GaLaXy1036'
                 contributor.authoring_tool = 'Arcane Legends Models Ripper'
-                contributor.comments = 'no sharing allowed'
                 contributor.save()
 
                 model.assetInfo.contributors.append(contributor)
@@ -51,13 +48,10 @@ def extract_models(iff_object, filename):
 
                             vertices = []
                             indices = []
-                            normals = []
-                            # colors = []
-                            texcoords = []
 
                             vertices_reader = BinaryReader(vertices_data.data)
                             indices_reader = BinaryReader(indices_data.data)
-                            
+
                             vertices_count = vertices_reader.read_int()
 
                             for _ in range(vertices_count):
@@ -65,19 +59,12 @@ def extract_models(iff_object, filename):
                                     vertices.append(vertices_reader.read_float16())  # x, y, z coordinates
 
                                 for _ in range(3):
-                                    normals.append(vertices_reader.read_float16())  # Maybe normals (x, y, z)
+                                    vertices_reader.read_float16()  # Maybe normals (x, y, z)
 
                                 vertices_reader.read_int()  # always 0xFFFFFFFF (maybe vertices color R, G, B, A)
 
-                                # for _ in range(4):
-                                #     colors.append(vertices_reader.read_byte())
-
                                 for _ in range(2):
-                                    texcoords.append(vertices_reader.read_float16() * 4096.0)  # Maybe texture coordinates (s, t)
-                                    # multiplied by 4096 in the lib (0x1000)
-
-                            # print(texcoords)
-                            # print(normals)
+                                    vertices_reader.read_float16()  # Maybe texture coordinates (s, t)
 
                             indices_count = indices_reader.read_int()
 
@@ -88,10 +75,7 @@ def extract_models(iff_object, filename):
                                     indices.append(indice)
 
                             sources = [
-                                collada.source.FloatSource('{}-mesh-positions'.format(object_name), np.array(vertices), ('X', 'Y', 'Z')),
-                                # collada.source.FloatSource('{}-mesh-normals'.format(object_name), np.array(indices), ('X', 'Y', 'Z')),
-                                # collada.source.FloatSource('{}-mesh-colors'.format(object_name), np.array(colors), ('R', 'G', 'B', 'A')),
-                                # collada.source.FloatSource('{}-mesh-map'.format(object_name), np.array(texcoords), ('S', 'T'))
+                                collada.source.FloatSource('{}-mesh-positions'.format(object_name), np.array(vertices), ('X', 'Y', 'Z'))
                             ]
 
                             geom = collada.geometry.Geometry(model, '{}-mesh'.format(object_name), object_name, sources)
@@ -99,9 +83,6 @@ def extract_models(iff_object, filename):
                             input_list = collada.source.InputList()
 
                             input_list.addInput(0, 'VERTEX', '#{}-mesh-positions'.format(object_name))
-                            # input_list.addInput(1, 'NORMAL', '#{}-mesh-normals'.format(object_name))
-                            # input_list.addInput(2, 'COLOR', '#{}-mesh-colors'.format(object_name), set='0')
-                            # input_list.addInput(2, 'TEXCOORD', '#{}-mesh-map'.format(object_name), set='0')
 
                             triset = geom.createTriangleSet(np.array(indices), input_list, 'group-{}'.format(index))
                             geom.primitives.append(triset)
@@ -135,13 +116,14 @@ def extract_models(iff_object, filename):
 
 
 def save_model(filename, model):
-    output_path = '{0}/{0}_model.dae'.format(filename)
+    output_path = '{}_model.dae'.format(filename)
 
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     model.write(output_path)
 
     print('[*] Successfully extracted 3d models as .dae file')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A little tool used to extract 3d models from .geo files used by Arcane Legends')
