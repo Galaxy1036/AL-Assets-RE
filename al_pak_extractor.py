@@ -47,7 +47,7 @@ def extract_ressources(reader, output_directory, verbose_mode):
             print('[*] Filenames table is not compressed, total length: {}'.format(filenames_table_uncompressed_size))
             filenames_table = reader.read(filenames_table_uncompressed_size)
 
-        filenames = filenames = [name.decode('utf-8') for name in filenames_table.split(b'\x00')]  # They use null char terminator
+        filenames = [name.decode('utf-8') for name in filenames_table.split(b'\x00')]  # They use null char terminator
 
         uncompressed_block_size = reader.read_int()
         block_count = ((reader.read_int() + uncompressed_block_size - 1) // uncompressed_block_size) + 1

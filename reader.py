@@ -21,3 +21,17 @@ class BinaryReader(BufferedReader):
 
     def read_int(self):
         return int.from_bytes(self.read(4), 'little')
+
+    def read_string(self):
+        string = []
+
+        while True:
+            char = self.read(1)
+
+            if char != b'\x00':
+                string.append(char)
+
+            else:
+                break
+
+        return b''.join(string).decode('utf-8')
