@@ -21,6 +21,7 @@ For further explanations about the files formats look at the following links
 | Others files | [Others files formats](https://github.com/Galaxy1036/AL-Assets-RE/wiki/Others-files-formats) |
 
 ## Scripts list
+- `al_pak_packer.py`: allow you to build .pak archive
 - `geometry_extractor.py`: allow you to extract 3d models from .geo files
 - `image_atlas_extractor.py`: allow you to extract sprites from image atlas
 - `pvr2png.py`: allow you to extract textures as .png files from .pvr files. **Note:** The script isn't 100% done, it currently only support a few pixel types (enough to support all games textures tho) & extracting textures as .png can also be done via PVRTexTool

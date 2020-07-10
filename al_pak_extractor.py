@@ -3,32 +3,45 @@ import sys
 import brotli
 import argparse
 
+from utils import crc32c
 from reader import BinaryReader
 
 
-def extract_ressources(reader, output_directory, verbose_mode):
-    files = {}
+def extract_ressources(data, output_directory, verbose_mode):
+    files = []
+    reader = BinaryReader(data)
 
     file_magic = reader.read_int()
-
-    # TODO: verify the file CRC (crc is at the end of the file ), they use crc32c not crc32
 
     if file_magic == 0x36303030:
         files_count = reader.read_int()
 
         print('[*] File version: {}, files count: {}'.format(hex(file_magic), files_count))
 
-        for i in range(files_count):
-            reader.read_int()  # Unknown value, seems to grow at each iteration
+        crc_block = data[-12:]
 
-            file_id = reader.read_int()
-            file_offset = reader.read_int()
-            file_size = reader.read_int()
+        crc_tag = crc_block[0:4]
 
-            files[file_id] = {
-                'offset': file_offset,
-                'size': file_size
-            }
+        if crc_tag == b'CRC0':
+            pak_crc = int.from_bytes(crc_block[4:8], 'little')
+            pak_size = int.from_bytes(crc_block[8:12], 'little')
+
+            if pak_size != len(data[:-12]):
+                sys.exit('[x] Mismatching size between the real one and the specified one in the crc end block, aborting...')
+
+            if pak_crc != crc32c(data[:-12]):
+                sys.exit('[x] Mismatching crc, maybe your data are corrupted, aborting...')
+
+        else:
+            sys.exit('[x] Cannot find CRC end block, aborting...')
+
+        for _ in range(files_count):
+            files.append({
+                'filename_crc32c': reader.read_int(),
+                'filename_offset': reader.read_int(),
+                'file_data_offset': reader.read_int(),
+                'file_size': reader.read_int()
+            })
 
         filenames_table_compressed_size = reader.read_int()
         filenames_table_uncompressed_size = reader.read_int()
@@ -47,16 +60,22 @@ def extract_ressources(reader, output_directory, verbose_mode):
             print('[*] Filenames table is not compressed, total length: {}'.format(filenames_table_uncompressed_size))
             filenames_table = reader.read(filenames_table_uncompressed_size)
 
-        filenames = [name.decode('utf-8') for name in filenames_table.split(b'\x00')]  # They use null char terminator
+        filenames = BinaryReader(filenames_table)
 
         uncompressed_block_size = reader.read_int()
-        block_count = ((reader.read_int() + uncompressed_block_size - 1) // uncompressed_block_size) + 1
+        total_uncompressed_data_size = reader.read_int()
 
-        print('[*] Amount of data block: {}, uncompressed block size: {}'.format(block_count, uncompressed_block_size))
+        block_count = ((total_uncompressed_data_size + uncompressed_block_size - 1) // uncompressed_block_size) + 1
+
+        print('[*] Amount of data block: {}, uncompressed block size: {}, total data size: {}'.format(
+            block_count,
+            uncompressed_block_size,
+            total_uncompressed_data_size)
+        )
 
         block_offsets = []
 
-        for i in range(block_count):
+        for _ in range(block_count):
             block_offsets.append(reader.read_int())
 
         data = []
@@ -80,16 +99,22 @@ def extract_ressources(reader, output_directory, verbose_mode):
                 data.append(reader.read(compressed_block_size))
 
         data = b''.join(data)
-        sorted_files_id = sorted(files)
 
-        for i in range(files_count):
-            filename = filenames[i]
-            file_info = files[sorted_files_id[i]]
+        if len(data) != total_uncompressed_data_size:
+            sys.exit('[x] Total uncompressed size doesn\'t match the expected one !')
 
-            file_data = data[file_info['offset']: file_info['offset'] + file_info['size']]
+        for file_info in files:
+            filenames.seek(file_info['filename_offset'])
+
+            filename = filenames.read_string()
+
+            if crc32c(filename.encode('utf-8')) != file_info['filename_crc32c']:
+                sys.exit('[x] Filename {} doesn\'t match the expected crc32c'.format(filename))
+
+            file_data = data[file_info['file_data_offset']: file_info['file_data_offset'] + file_info['file_size']]
 
             if verbose_mode:
-                print('[*] Extracting file: {}, file size: {}'.format(filename, file_info['size']))
+                print('[*] Extracting file: {}, file size: {}'.format(filename, file_info['file_size']))
 
             output_path = '{}/{}'.format(output_directory, filename)
 
@@ -118,7 +143,7 @@ if __name__ == '__main__':
         if file.endswith('.pak'):
             if os.path.isfile(file):
                 with open(file, 'rb') as f:
-                    extract_ressources(BinaryReader(f.read()), os.path.splitext(file)[0], args.verbose)
+                    extract_ressources(f.read(), os.path.splitext(file)[0], args.verbose)
 
             else:
                 print('[*] Cannot find {}'.format(file))
